@@ -1,0 +1,362 @@
+---
+title: "Preseason Rankings Affecting March Madness Results"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+#Hypothesis-Preseason rankings affect march madness results
+```
+
+```{r}
+library(readxl)
+library(readr)
+```
+
+```{r}
+getwd()
+```
+ 
+ 
+```{r}
+setwd("/Users/shaunmckellarjr/Desktop/College Basketball Project/Excel file")
+```
+
+```{r}
+CFB_Data <- read.csv("CBB Preseason Rankings.csv")
+```
+
+```{r}
+length(CFB_Data)
+```
+
+```{r}
+head(CFB_Data)
+```
+
+```{r}
+dim(CFB_Data)
+```
+
+
+```{r}
+summary(CFB_Data)
+```
+
+```{r}
+str(CFB_Data)
+```
+
+```{r}
+colSums(is.na(CFB_Data))
+```
+
+```{r}
+names(CFB_Data)
+```
+
+```{r}
+CFB_Data
+```
+
+
+
+```{r}
+# Filter for Rank 1
+rank1_data <- subset(CFB_Data, Rank == 1)
+
+# Count the number of times each team has been ranked #1
+rank1_counts <- table(rank1_data$Team)
+
+rank1_counts
+
+```
+
+```{r}
+library(ggplot2)
+
+# Filter for top 5 ranks
+top5_data <- subset(CFB_Data, Rank <= 5)
+
+# Count the number of times each team has been in the top 5
+top5_counts <- as.data.frame(table(top5_data$Team))
+
+# Rename columns for clarity
+names(top5_counts) <- c("Team", "Count")
+
+# Create the bar plot
+ggplot(top5_counts, aes(x = reorder(Team, Count), y = Count)) +
+  geom_bar(stat = "identity", fill = "orange") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "Team", y = "Number of Times in Top 5", title = "Number of Times Teams Ranked in Top 5")
+
+```
+
+```{r}
+library(gridExtra)
+# Filter for top 5 ranks
+top5_data <- subset(CFB_Data, Rank <= 5)
+
+# Prepare the data for plotting
+# Create a table counting the number of top 5 ranks for each team by year
+top5_yearly_counts <- as.data.frame(table(Year = top5_data$Year, Team = top5_data$Team))
+
+# Rename columns for clarity
+names(top5_yearly_counts) <- c("Year", "Team", "Count")
+
+# Generate a list of unique teams
+teams <- unique(top5_yearly_counts$Team)
+
+# Plot the data in separate graphs (could use a loop or lapply for this)
+plots <- lapply(teams, function(team) {
+  team_data <- subset(top5_yearly_counts, Team == team)
+  ggplot(team_data, aes(x = Year, y = Count)) +
+    geom_line() +
+    geom_point() +
+    scale_y_continuous(limits = c(0, max(top5_yearly_counts$Count)), breaks = 0:max(top5_yearly_counts$Count)) +
+    labs(title = paste("Top 5 Rankings Over Years:", team))
+})
+
+# Determine the number of columns and rows based on the number of plots
+num_of_plots <- length(plots)
+num_of_cols <- ceiling(sqrt(num_of_plots))
+num_of_rows <- ceiling(num_of_plots / num_of_cols)
+
+# Arrange the plots into a grid
+do.call(grid.arrange, c(plots, ncol = num_of_cols, nrow = num_of_rows))
+```
+
+
+```{r}
+# Assuming your data frame is named CFB_Data and it has 'Rank' and 'Round' columns
+# Calculate the Pearson correlation coefficient
+correlation <- cor(CFB_Data$Rank, CFB_Data$Round, method = "pearson")
+
+# If the data is not normally distributed or the relationship is not linear,
+# use Spearman's rank correlation
+correlation_spearman <- cor(CFB_Data$Rank, CFB_Data$Round, method = "spearman")
+
+# Output the correlation coefficient
+correlation
+correlation_spearman
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(CFB_Data, aes(x = Rank, y = Round)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Preseason Ranking", y = "Tournament Round Reached", 
+       title = "Correlation between Preseason Rankings and Tournament Performance")
+
+```
+
+```{r}
+library(ggplot2)
+# Define what we mean by 'lower-ranked' and 'successful run'
+lower_rank_threshold <- 15
+successful_run_threshold <- 4
+
+# Create the plot
+ggplot(CFB_Data, aes(x = Rank, y = Round)) +
+  geom_point(aes(color = (Rank > lower_rank_threshold & Round > successful_run_threshold))) +
+  scale_color_manual(values = c('FALSE' = 'black', 'TRUE' = 'red')) +
+  geom_smooth(method = "lm", se = FALSE, color = 'blue') +
+  labs(x = "Preseason Ranking", y = "Tournament Round Reached", 
+       title = "Highlighting Lower-Ranked Teams with Successful Tournament Runs") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+```{r}
+# Define what we mean by 'lower-ranked' and 'successful run'
+lower_rank_threshold <- 15
+successful_run_threshold <- 4
+
+# Identify the underdog moments
+underdogs <- subset(CFB_Data, Rank > lower_rank_threshold & Round > successful_run_threshold)
+
+# Create the plot
+p <- ggplot(CFB_Data, aes(x = Rank, y = Round)) +
+  geom_point(aes(color = (Rank > lower_rank_threshold & Round > successful_run_threshold))) +
+  scale_color_manual(values = c('FALSE' = 'black', 'TRUE' = 'red')) +
+  geom_smooth(method = "lm", se = FALSE, color = 'blue') +
+  labs(x = "Preseason Ranking", y = "Tournament Round Reached", 
+       title = "Highlighting Lower-Ranked Teams with Successful Tournament Runs") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Annotate underdog teams
+p <- p + geom_text(data = underdogs, aes(label = paste(Team, Year, sep=", ")), 
+                   vjust = -1, hjust = 1, color = 'red')
+
+# Print the plot
+print(p)
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(readr)
+
+# Read the annual performance data
+annual_performance <- read_csv("/Users/shaunmckellarjr/Desktop/College Basketball Project/annual_performance.csv")
+
+# Plot the time series of the average tournament round reached
+ggplot(annual_performance, aes(x = Year, y = Round)) +
+  geom_line() +  # Add a line to connect the points
+  geom_point() +  # Add points to represent each year
+  theme_minimal() +  # Use a minimal theme for the plot
+  labs(title = "Average Tournament Round Reached by Top 5 Preseason Ranked Teams",
+       x = "Year",
+       y = "Average Tournament Round Reached")
+
+```
+
+```{r}
+# Load the necessary libraries
+library(ggplot2)
+library(dplyr)
+library(readr)
+
+# Load your dataset
+CFB_Data <- read_csv("/Users/shaunmckellarjr/Desktop/College Basketball Project/Excel file/CBB Preseason Rankings.csv")
+
+# Filter for "DUKEDuke" data
+duke_data <- CFB_Data %>%
+  filter(Team == "DUKEDuke") %>%
+  group_by(Year) %>%
+  summarize(AverageRound = mean(Round))
+
+# Plot the yearly performance trend for "DUKEDuke"
+ggplot(duke_data, aes(x = Year, y = AverageRound)) +
+  geom_line() +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Yearly Tournament Performance Trend for Duke",
+       x = "Year", 
+       y = "Average Tournament Round Reached")
+
+```
+
+```{r}
+# Load the necessary libraries
+library(ggplot2)
+library(dplyr)
+library(readr)
+
+# Load your dataset
+CFB_Data <- read_csv("/Users/shaunmckellarjr/Desktop/College Basketball Project/Excel file/CBB Preseason Rankings.csv")
+
+# Now, let's calculate the average tournament round reached for each rank for each year.
+rank_performance_over_time <- CFB_Data %>%
+  group_by(Year, Rank) %>%
+  summarize(AverageRound = mean(Round), .groups = 'drop')
+
+# Plot the general trend of ranks over the years.
+ggplot(rank_performance_over_time, aes(x = Rank, y = AverageRound, group = Year)) +
+  geom_line(aes(color = factor(Year))) +
+  geom_point(aes(color = factor(Year))) +
+  theme_minimal() +
+  labs(title = "Tournament Outcome Trends Based on Preseason Ranks Over Years",
+       x = "Preseason Rank", 
+       y = "Average Tournament Round Reached",
+       color = "Year")
+
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(readr)
+
+# Load your dataset
+CFB_Data <- read_csv("/Users/shaunmckellarjr/Desktop/College Basketball Project/Excel file/CBB Preseason Rankings.csv")
+
+# For simplicity, let's start by looking at the trend for rank 1 only.
+rank1_data <- CFB_Data %>%
+  filter(Rank == 1) %>%
+  group_by(Year) %>%
+  summarize(AverageRound = mean(Round), .groups = 'drop')
+
+# Plot the trend for rank 1
+ggplot(rank1_data, aes(x = Year, y = AverageRound)) +
+  geom_line() +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Yearly Tournament Performance Trend for Rank 1 Teams",
+       x = "Year", 
+       y = "Average Tournament Round Reached")
+
+```
+
+```{r}
+# Calculate statistical summaries for each rank
+rank_summaries <- CFB_Data %>%
+  group_by(Rank) %>%
+  summarize(MedianRound = median(Round),
+            IQR = IQR(Round),
+            .groups = 'drop')
+
+# View the statistical summaries
+print(rank_summaries)
+```
+
+```{r}
+# Load the necessary libraries
+library(ggplot2)
+library(dplyr)
+library(readr)
+
+# Load your dataset
+CFB_Data <- read_csv("/Users/shaunmckellarjr/Desktop/College Basketball Project/Excel file/CBB Preseason Rankings.csv")
+
+# Make sure 'Year' is treated as numeric, which is necessary for regression
+CFB_Data$Year <- as.numeric(CFB_Data$Year)
+
+# Calculate the average round reached for each rank in each year
+rank_performance <- CFB_Data %>%
+  group_by(Year, Rank) %>%
+  summarize(AverageRound = mean(Round), .groups = 'drop')
+
+# Now we'll create a list of linear models, one for each rank
+model_list <- list()
+for(rank in unique(CFB_Data$Rank)) {
+  model_data <- rank_performance %>% filter(Rank == rank)
+  model_list[[as.character(rank)]] <- lm(AverageRound ~ Year, data = model_data)
+}
+
+# Summarize the models
+model_summaries <- lapply(model_list, summary)
+
+# Print the summaries for each rank
+model_summaries
+
+```
+
+```{r}
+library(plotly)
+
+# Create a ggplot object
+p <- ggplot(CFB_Data, aes(x = Rank, y = Round, text = paste(Team, Year, sep=", "))) +
+  geom_point(aes(color = (Rank > lower_rank_threshold & Round > successful_run_threshold))) +
+  scale_color_manual(values = c('FALSE' = 'black', 'TRUE' = 'red')) +
+  geom_smooth(method = "lm", se = FALSE, color = 'blue') +
+  labs(x = "Preseason Ranking", y = "Tournament Round Reached", 
+       title = "Highlighting Lower-Ranked Teams with Successful Tournament Runs") +
+  theme_minimal()
+
+# Convert the ggplot object to a Plotly object
+p_plotly <- ggplotly(p, tooltip = "text")
+
+# Print the Plotly plot
+p_plotly
+```
