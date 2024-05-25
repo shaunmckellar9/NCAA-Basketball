@@ -1,4 +1,5 @@
 Preseason Rankings Affecting March Madness Results
+
 Overview
 This GitHub repository contains the datasets, scripts, and outputs from my project analyzing how preseason rankings correlate with the success of teams in the NCAA March Madness basketball tournament. The goal is to explore if teams with higher preseason rankings generally perform better in the tournament compared to lower-ranked teams.
 
